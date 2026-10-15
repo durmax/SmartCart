@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using SmartCart.Application.Abstractions;
 using SmartCart.Application.Services;
 using SmartCart.Infrastructure.Persistence;
+using SmartCart.Infrastructure.OCR;
 using SmartCart.Infrastructure.Retailers.Lidl;
 using SmartCart.Infrastructure.Storage;
 
@@ -29,6 +31,17 @@ public static class SmartCartInfrastructureServiceCollectionExtensions
             _ => new LocalReceiptImageStorage(storagePath, contentRootPath));
         services.AddScoped<IReceiptPersistence, ReceiptPersistence>();
         services.AddScoped<IReceiptService, ReceiptService>();
+        services.Configure<OcrOptions>(options =>
+        {
+            options.TessDataPath = configuration[$"{OcrOptions.SectionName}:TessDataPath"] ?? options.TessDataPath;
+            options.Language = configuration[$"{OcrOptions.SectionName}:Language"] ?? options.Language;
+        });
+        services.AddScoped<IOcrService>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<OcrOptions>>().Value;
+            var dataPath = Path.GetFullPath(options.TessDataPath, AppContext.BaseDirectory);
+            return new TesseractOcrService(dataPath, options.Language);
+        });
         services.AddScoped<IRetailerOfferProvider, LidlOfferProvider>();
         return services;
     }

@@ -81,4 +81,18 @@ public sealed class ReceiptsController(IReceiptService receiptService) : Control
         var result = await receiptService.GetByIdAsync(id, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
+
+    [HttpPost("{id:guid}/ocr")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ProcessOcrAsync(
+        Guid id,
+        [FromQuery] bool force = false,
+        CancellationToken cancellationToken = default)
+    {
+        var rawOcrText = await receiptService.ProcessOcrAsync(id, force, cancellationToken);
+        return rawOcrText is null
+            ? NotFound()
+            : Ok(new { ReceiptId = id, RawOcrText = rawOcrText });
+    }
 }

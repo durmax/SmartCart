@@ -11,4 +11,9 @@ public interface IReceiptPersistence
     Task<Receipt?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+
+    Task SaveRawOcrTextAsync(
+        Guid id,
+        string rawOcrText,
+        CancellationToken cancellationToken = default);
 }

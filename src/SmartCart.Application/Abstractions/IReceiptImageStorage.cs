@@ -6,4 +6,8 @@ public interface IReceiptImageStorage
         Stream stream,
         string fileName,
         CancellationToken cancellationToken = default);
+
+    Task<Stream> OpenReadAsync(
+        string imagePath,
+        CancellationToken cancellationToken = default);
 }

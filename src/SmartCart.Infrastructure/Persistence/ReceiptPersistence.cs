@@ -18,4 +18,17 @@ public sealed class ReceiptPersistence(SmartCartDbContext dbContext) : IReceiptP
             .AsNoTracking()
             .FirstOrDefaultAsync(receipt => receipt.Id == id, cancellationToken);
     }
+
+    public async Task SaveRawOcrTextAsync(
+        Guid id,
+        string rawOcrText,
+        CancellationToken cancellationToken = default)
+    {
+        var receipt = await dbContext.Receipts
+            .FirstOrDefaultAsync(receipt => receipt.Id == id, cancellationToken)
+            ?? throw new InvalidOperationException($"Receipt {id} was not found.");
+
+        receipt.RawOcrText = rawOcrText;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

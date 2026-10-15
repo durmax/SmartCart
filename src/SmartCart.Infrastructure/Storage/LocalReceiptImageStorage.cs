@@ -44,4 +44,25 @@ public sealed class LocalReceiptImageStorage(string storagePath, string contentR
 
         return Path.Combine(storagePath, fileId).Replace(Path.DirectorySeparatorChar, '/');
     }
+
+    public Task<Stream> OpenReadAsync(
+        string imagePath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(imagePath);
+
+        var configuredRoot = Path.IsPathRooted(storagePath)
+            ? storagePath
+            : Path.Combine(contentRootPath, storagePath);
+        var absoluteRoot = Path.GetFullPath(configuredRoot);
+        var absolutePath = Path.GetFullPath(Path.Combine(contentRootPath, imagePath));
+        if (!absolutePath.StartsWith(absoluteRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The receipt image path is outside the configured storage directory.");
+        }
+
+        Stream stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return Task.FromResult(stream);
+    }
 }
