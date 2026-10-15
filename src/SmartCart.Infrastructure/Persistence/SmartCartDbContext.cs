@@ -13,6 +13,8 @@ public class SmartCartDbContext(DbContextOptions<SmartCartDbContext> options) : 
 
     public DbSet<ReceiptItem> ReceiptItems => Set<ReceiptItem>();
 
+    public DbSet<ReceiptItemAdjustment> ReceiptItemAdjustments => Set<ReceiptItemAdjustment>();
+
     public DbSet<Offer> Offers => Set<Offer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -35,6 +37,11 @@ public class SmartCartDbContext(DbContextOptions<SmartCartDbContext> options) : 
             .WithOne(item => item.Receipt)
             .HasForeignKey(item => item.ReceiptId);
 
+        modelBuilder.Entity<ReceiptItem>()
+            .HasMany(item => item.Adjustments)
+            .WithOne(adjustment => adjustment.ReceiptItem)
+            .HasForeignKey(adjustment => adjustment.ReceiptItemId);
+
         modelBuilder.Entity<Receipt>()
             .Property(receipt => receipt.TotalAmount)
             .HasPrecision(10, 2);
@@ -54,6 +61,10 @@ public class SmartCartDbContext(DbContextOptions<SmartCartDbContext> options) : 
         modelBuilder.Entity<ReceiptItem>()
             .Property(item => item.Confidence)
             .HasPrecision(5, 4);
+
+        modelBuilder.Entity<ReceiptItemAdjustment>()
+            .Property(adjustment => adjustment.Amount)
+            .HasPrecision(10, 2);
 
         modelBuilder.Entity<Offer>()
             .Property(offer => offer.RegularPrice)

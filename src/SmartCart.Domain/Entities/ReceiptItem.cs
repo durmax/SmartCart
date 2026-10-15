@@ -10,6 +10,10 @@ public class ReceiptItem
 
     public string OriginalText { get; set; } = string.Empty;
 
+    public string? ParsedName { get; set; }
+
+    public string? Unit { get; set; }
+
     public decimal? Quantity { get; set; }
 
     public decimal? UnitPrice { get; set; }
@@ -21,4 +25,6 @@ public class ReceiptItem
     public Receipt Receipt { get; set; }
 
     public Product? Product { get; set; }
+
+    public ICollection<ReceiptItemAdjustment> Adjustments { get; set; } = new List<ReceiptItemAdjustment>();
 }

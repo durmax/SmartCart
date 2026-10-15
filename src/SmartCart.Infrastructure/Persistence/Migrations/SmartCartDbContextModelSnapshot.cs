@@ -182,6 +182,9 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ParsedName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid?>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
@@ -196,6 +199,9 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<string>("Unit")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal?>("UnitPrice")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
@@ -207,6 +213,30 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                     b.HasIndex("ReceiptId");
 
                     b.ToTable("ReceiptItems");
+                });
+
+            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItemAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ReceiptItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiptItemId");
+
+                    b.ToTable("ReceiptItemAdjustments");
                 });
 
             modelBuilder.Entity("SmartCart.Domain.Entities.ProductAlias", b =>
@@ -237,6 +267,17 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                     b.Navigation("Receipt");
                 });
 
+            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItemAdjustment", b =>
+                {
+                    b.HasOne("SmartCart.Domain.Entities.ReceiptItem", "ReceiptItem")
+                        .WithMany("Adjustments")
+                        .HasForeignKey("ReceiptItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReceiptItem");
+                });
+
             modelBuilder.Entity("SmartCart.Domain.Entities.Product", b =>
                 {
                     b.Navigation("Aliases");
@@ -247,6 +288,11 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("SmartCart.Domain.Entities.Receipt", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItem", b =>
+                {
+                    b.Navigation("Adjustments");
                 });
 #pragma warning restore 612, 618
         }
