@@ -2,9 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using SmartCart.Application.Abstractions;
 using SmartCart.Infrastructure.Retailers.Lidl;
 
-namespace SmartCart.Api.Extensions;
+namespace SmartCart.Infrastructure.Extensions;
 
-public static class SmartCartServiceCollectionExtensions
+public static class SmartCartInfrastructureServiceCollectionExtensions
 {
     public static IServiceCollection AddSmartCartInfrastructure(this IServiceCollection services)
     {

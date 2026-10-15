@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.6.11822.322 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
@@ -18,6 +18,11 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartCart.Domain.Tests", "tests\SmartCart.Domain.Tests\SmartCart.Domain.Tests.csproj", "{9F9791A8-8BB5-43FE-B3F5-1D6F406D3005}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartCart.Application.Tests", "tests\SmartCart.Application.Tests\SmartCart.Application.Tests.csproj", "{CB9877B7-F578-4144-82EA-3D262FCC1938}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4B5AF924-5802-4489-A0AA-8E77EF6412E0}"
+	ProjectSection(SolutionItems) = preProject
+		PLAN.md = PLAN.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -112,5 +117,8 @@ Global
 		{0AD42F2C-C3BE-4F55-B60E-2ACCC56A4E43} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{9F9791A8-8BB5-43FE-B3F5-1D6F406D3005} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CB9877B7-F578-4144-82EA-3D262FCC1938} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A5B5EB0C-E292-4C1D-BC3D-DE8C32DADDB6}
 	EndGlobalSection
 EndGlobal

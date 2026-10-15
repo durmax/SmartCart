@@ -1,9 +1,10 @@
 using SmartCart.Api.Extensions;
+using SmartCart.Infrastructure.Extensions;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSmartCartApi();
 builder.Services.AddSmartCartInfrastructure();
-builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
