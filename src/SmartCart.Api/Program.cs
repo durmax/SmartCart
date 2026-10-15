@@ -15,7 +15,6 @@ if (app.Environment.IsDevelopment())
         options
             .WithTitle("SmartCart API")
             .WithTheme(ScalarTheme.Moon)
-            .WithLayout(ScalarLayout.Modern)
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
     });
 }
