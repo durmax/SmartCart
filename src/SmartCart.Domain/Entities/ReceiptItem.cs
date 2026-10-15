@@ -18,7 +18,7 @@ public class ReceiptItem
 
     public decimal? Confidence { get; set; }
 
-    public Receipt? Receipt { get; set; }
+    public Receipt Receipt { get; set; }
 
     public Product? Product { get; set; }
 }

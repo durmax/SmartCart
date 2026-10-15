@@ -17,6 +17,8 @@ public class SmartCartDbContext(DbContextOptions<SmartCartDbContext> options) : 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Product>()
             .HasMany(product => product.Aliases)
             .WithOne(alias => alias.Product)
@@ -32,5 +34,45 @@ public class SmartCartDbContext(DbContextOptions<SmartCartDbContext> options) : 
             .HasMany(receipt => receipt.Items)
             .WithOne(item => item.Receipt)
             .HasForeignKey(item => item.ReceiptId);
+
+        modelBuilder.Entity<Receipt>()
+            .Property(receipt => receipt.TotalAmount)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<ReceiptItem>()
+            .Property(item => item.Quantity)
+            .HasPrecision(10, 3);
+
+        modelBuilder.Entity<ReceiptItem>()
+            .Property(item => item.UnitPrice)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<ReceiptItem>()
+            .Property(item => item.TotalPrice)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<ReceiptItem>()
+            .Property(item => item.Confidence)
+            .HasPrecision(5, 4);
+
+        modelBuilder.Entity<Offer>()
+            .Property(offer => offer.RegularPrice)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<Offer>()
+            .Property(offer => offer.OfferPrice)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(product => product.NormalizedName);
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(product => product.Ean);
+
+        modelBuilder.Entity<ProductAlias>()
+            .HasIndex(alias => new { alias.Retailer, alias.Alias });
+
+        modelBuilder.Entity<Receipt>()
+            .HasIndex(receipt => receipt.PurchaseDate);
     }
 }

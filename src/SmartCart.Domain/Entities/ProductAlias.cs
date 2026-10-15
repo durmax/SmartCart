@@ -10,5 +10,5 @@ public class ProductAlias
 
     public string? Retailer { get; set; }
 
-    public Product? Product { get; set; }
+    public Product Product { get; set; }
 }

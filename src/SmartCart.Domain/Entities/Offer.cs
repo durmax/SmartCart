@@ -10,6 +10,8 @@ public class Offer
 
     public string Name { get; set; } = string.Empty;
 
+    public string? NormalizedName { get; set; }
+
     public string? Brand { get; set; }
 
     public decimal? RegularPrice { get; set; }
