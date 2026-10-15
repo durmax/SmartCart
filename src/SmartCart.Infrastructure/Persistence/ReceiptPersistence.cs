@@ -50,15 +50,61 @@ public sealed class ReceiptPersistence(SmartCartDbContext dbContext) : IReceiptP
 
         if (force)
         {
-            dbContext.ReceiptItems.RemoveRange(existingReceipt.Items);
+            // Remove adjustments first to avoid FK issues, then remove items.
+            var adjustments = existingReceipt.Items.SelectMany(i => i.Adjustments).ToList();
+            if (adjustments.Count > 0)
+            {
+                dbContext.ReceiptItemAdjustments.RemoveRange(adjustments);
+            }
+
+            if (existingReceipt.Items.Count > 0)
+            {
+                dbContext.ReceiptItems.RemoveRange(existingReceipt.Items);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
         }
 
         existingReceipt.ReceiptNumber = receipt.ReceiptNumber;
         existingReceipt.PurchaseDate = receipt.PurchaseDate;
         existingReceipt.TotalAmount = receipt.TotalAmount;
-        foreach (var item in receipt.Items)
+
+        // Add new items via DbSet to ensure EF treats them as new inserts.
+        var newItems = receipt.Items.Select(i => new ReceiptItem
         {
-            existingReceipt.Items.Add(item);
+            Id = Guid.NewGuid(),
+            ReceiptId = existingReceipt.Id,
+            ProductId = i.ProductId,
+            OriginalText = i.OriginalText,
+            ParsedName = i.ParsedName,
+            Unit = i.Unit,
+            Quantity = i.Quantity,
+            UnitPrice = i.UnitPrice,
+            TotalPrice = i.TotalPrice,
+            Confidence = i.Confidence
+        }).ToList();
+
+        await dbContext.ReceiptItems.AddRangeAsync(newItems, cancellationToken);
+
+        var newAdjustments = new List<ReceiptItemAdjustment>();
+        foreach (var srcItem in receipt.Items)
+        {
+            var created = newItems.First(n => n.OriginalText == srcItem.OriginalText && n.TotalPrice == srcItem.TotalPrice);
+            foreach (var adj in srcItem.Adjustments)
+            {
+                newAdjustments.Add(new ReceiptItemAdjustment
+                {
+                    Id = Guid.NewGuid(),
+                    ReceiptItemId = created.Id,
+                    Description = adj.Description,
+                    Amount = adj.Amount
+                });
+            }
+        }
+
+        if (newAdjustments.Count > 0)
+        {
+            await dbContext.ReceiptItemAdjustments.AddRangeAsync(newAdjustments, cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
