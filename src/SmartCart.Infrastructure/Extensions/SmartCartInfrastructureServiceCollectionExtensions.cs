@@ -7,6 +7,7 @@ using SmartCart.Application.Services;
 using SmartCart.Infrastructure.Persistence;
 using SmartCart.Infrastructure.OCR;
 using SmartCart.Infrastructure.Retailers.Lidl;
+using SmartCart.Infrastructure.Receipts.Lidl;
 using SmartCart.Infrastructure.Storage;
 
 namespace SmartCart.Infrastructure.Extensions;
@@ -31,6 +32,7 @@ public static class SmartCartInfrastructureServiceCollectionExtensions
             _ => new LocalReceiptImageStorage(storagePath, contentRootPath));
         services.AddScoped<IReceiptPersistence, ReceiptPersistence>();
         services.AddScoped<IReceiptService, ReceiptService>();
+        services.AddScoped<IReceiptParser, LidlReceiptParser>();
         services.Configure<OcrOptions>(options =>
         {
             options.TessDataPath = configuration[$"{OcrOptions.SectionName}:TessDataPath"] ?? options.TessDataPath;

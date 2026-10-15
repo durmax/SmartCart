@@ -1,4 +1,5 @@
 using SmartCart.Application.Abstractions;
+using SmartCart.Application.Receipts;
 using SmartCart.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -8,6 +9,7 @@ public sealed class ReceiptService(
     IReceiptImageStorage imageStorage,
     IReceiptPersistence receiptPersistence,
     IOcrService ocrService,
+    IEnumerable<IReceiptParser> receiptParsers,
     ILogger<ReceiptService> logger) : IReceiptService
 {
     public async Task<CreateReceiptResult> CreateAsync(
@@ -86,6 +88,64 @@ public sealed class ReceiptService(
         logger.LogInformation("OCR completed for Receipt {ReceiptId}", receiptId);
         logger.LogInformation("OCR returned {CharacterCount} characters", rawOcrText.Length);
         return rawOcrText;
+    }
+
+    public async Task<ParseReceiptResult?> ParseAsync(
+        Guid receiptId,
+        bool force = false,
+        CancellationToken cancellationToken = default)
+    {
+        var receipt = await receiptPersistence.GetByIdAsync(receiptId, cancellationToken);
+        if (receipt is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(receipt.RawOcrText))
+        {
+            throw new InvalidOperationException($"Receipt {receiptId} does not have OCR text to parse.");
+        }
+
+        var parser = receiptParsers.FirstOrDefault(candidate => candidate.CanParse(receipt.Retailer))
+            ?? throw new InvalidOperationException($"No receipt parser is registered for retailer '{receipt.Retailer}'.");
+        var parsed = parser.Parse(receipt.RawOcrText);
+        var parsedItems = parsed.Items.Select(item => new ReceiptItem
+        {
+            Id = Guid.NewGuid(),
+            ReceiptId = receipt.Id,
+            ProductId = null,
+            OriginalText = item.OriginalText,
+            ParsedName = item.ParsedName,
+            Quantity = item.Quantity,
+            Unit = item.Unit,
+            UnitPrice = item.UnitPrice,
+            TotalPrice = item.TotalPrice,
+            Adjustments = item.Adjustments.Select(adjustment => new ReceiptItemAdjustment
+            {
+                Id = Guid.NewGuid(),
+                Description = adjustment.Description,
+                Amount = adjustment.Amount
+            }).ToList()
+        }).ToList();
+
+        var parsedReceipt = new Receipt
+        {
+            Id = receipt.Id,
+            ReceiptNumber = parsed.ReceiptNumber,
+            PurchaseDate = parsed.PurchaseDate,
+            TotalAmount = parsed.TotalAmount,
+            Items = parsedItems
+        };
+        await receiptPersistence.SaveParsedReceiptAsync(parsedReceipt, force, cancellationToken);
+
+        return new ParseReceiptResult
+        {
+            ReceiptId = receipt.Id,
+            ReceiptNumber = parsed.ReceiptNumber,
+            PurchaseDate = parsed.PurchaseDate,
+            TotalAmount = parsed.TotalAmount,
+            Items = parsed.Items
+        };
     }
 
     private static CreateReceiptResult ToResult(Receipt receipt) => new()

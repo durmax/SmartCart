@@ -95,4 +95,16 @@ public sealed class ReceiptsController(IReceiptService receiptService) : Control
             ? NotFound()
             : Ok(new { ReceiptId = id, RawOcrText = rawOcrText });
     }
+
+    [HttpPost("{id:guid}/parse")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ParseAsync(
+        Guid id,
+        [FromQuery] bool force = false,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await receiptService.ParseAsync(id, force, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
 }

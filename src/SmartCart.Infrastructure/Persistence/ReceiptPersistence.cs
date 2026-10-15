@@ -31,4 +31,36 @@ public sealed class ReceiptPersistence(SmartCartDbContext dbContext) : IReceiptP
         receipt.RawOcrText = rawOcrText;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task SaveParsedReceiptAsync(
+        Receipt receipt,
+        bool force,
+        CancellationToken cancellationToken = default)
+    {
+        var existingReceipt = await dbContext.Receipts
+            .Include(existing => existing.Items)
+            .ThenInclude(item => item.Adjustments)
+            .FirstOrDefaultAsync(existing => existing.Id == receipt.Id, cancellationToken)
+            ?? throw new InvalidOperationException($"Receipt {receipt.Id} was not found.");
+
+        if (existingReceipt.Items.Count > 0 && !force)
+        {
+            return;
+        }
+
+        if (force)
+        {
+            dbContext.ReceiptItems.RemoveRange(existingReceipt.Items);
+        }
+
+        existingReceipt.ReceiptNumber = receipt.ReceiptNumber;
+        existingReceipt.PurchaseDate = receipt.PurchaseDate;
+        existingReceipt.TotalAmount = receipt.TotalAmount;
+        foreach (var item in receipt.Items)
+        {
+            existingReceipt.Items.Add(item);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

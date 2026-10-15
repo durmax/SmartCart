@@ -1,3 +1,5 @@
+using SmartCart.Application.Receipts;
+
 namespace SmartCart.Application.Services;
 
 public interface IReceiptService
@@ -11,6 +13,11 @@ public interface IReceiptService
     Task<CreateReceiptResult?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<string?> ProcessOcrAsync(
+        Guid receiptId,
+        bool force = false,
+        CancellationToken cancellationToken = default);
+
+    Task<ParseReceiptResult?> ParseAsync(
         Guid receiptId,
         bool force = false,
         CancellationToken cancellationToken = default);

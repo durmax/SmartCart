@@ -16,4 +16,9 @@ public interface IReceiptPersistence
         Guid id,
         string rawOcrText,
         CancellationToken cancellationToken = default);
+
+    Task SaveParsedReceiptAsync(
+        Receipt receipt,
+        bool force,
+        CancellationToken cancellationToken = default);
 }

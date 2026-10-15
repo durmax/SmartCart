@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using SmartCart.Application.Abstractions;
 using SmartCart.Application.Services;
 using SmartCart.Domain.Entities;
+using SmartCart.Infrastructure.Receipts.Lidl;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -123,6 +124,7 @@ public class ReceiptServiceTests
             imageStorage,
             persistence,
             ocrService,
+            [],
             NullLogger<ReceiptService>.Instance);
 
     private sealed class FakeReceiptImageStorage : IReceiptImageStorage
@@ -161,6 +163,20 @@ public class ReceiptServiceTests
         public Task AddAsync(Receipt receipt, CancellationToken cancellationToken = default)
         {
             AddedReceipt = receipt;
+            return Task.CompletedTask;
+        }
+
+        public Task SaveParsedReceiptAsync(Receipt receipt, bool force, CancellationToken cancellationToken = default)
+        {
+            var existingReceipt = AddedReceipt ?? _initialReceipt;
+            if (existingReceipt is not null && (force || existingReceipt.Items.Count == 0))
+            {
+                existingReceipt.ReceiptNumber = receipt.ReceiptNumber;
+                existingReceipt.PurchaseDate = receipt.PurchaseDate;
+                existingReceipt.TotalAmount = receipt.TotalAmount;
+                existingReceipt.Items = receipt.Items;
+            }
+
             return Task.CompletedTask;
         }
 
