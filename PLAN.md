@@ -5,9 +5,9 @@ Create a new .NET solution for the ShoppingAssistant architecture without modify
 
 ## Architecture
 - **Web / API** — application entry point and HTTP API.
-- **Application** — ReceiptService, ProductService, OfferService, ProductMatchingService.
-- **Infrastructure** — database, OCR, and retailer integrations, including LidlOfferProvider.
-- **Domain** — Product, ProductAlias, Receipt, ReceiptItem, and Offer.
+- **Application** — ProductService, OfferService, ProductMatchingService, and receipt parsing contracts/models.
+- **Infrastructure** — database and retailer integrations, including LidlOfferProvider and the standalone Lidl receipt parser.
+- **Domain** — Product, ProductAlias, and Offer.
 
 ## Workspace and tooling
 - Solution root: `C:\Users\maksoud\source\repos\ShoppingAssistant`.

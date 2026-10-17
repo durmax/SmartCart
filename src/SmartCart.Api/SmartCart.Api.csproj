@@ -20,8 +20,4 @@
     <ProjectReference Include="..\SmartCart.Infrastructure\SmartCart.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="receipts\" />
-  </ItemGroup>
-
 </Project>

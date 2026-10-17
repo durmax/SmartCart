@@ -1,8 +1,4 @@
-using SmartCart.Application.Abstractions;
-using SmartCart.Application.Services;
-using SmartCart.Domain.Entities;
 using SmartCart.Infrastructure.Receipts.Lidl;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SmartCart.Application.Tests;
 
@@ -105,69 +101,4 @@ TA-Nr. 247453             Beleg-Nr. 8466
                 .Contains(item.ParsedName, StringComparer.OrdinalIgnoreCase));
     }
 
-    [Fact]
-    public async Task ParseAsync_PersistsMetadataItemsAndAdjustmentsWithoutProductMatching()
-    {
-        var receipt = new Receipt
-        {
-            Id = Guid.NewGuid(),
-            Retailer = "Lidl",
-            RawOcrText = RawReceipt
-        };
-        var persistence = new FakeReceiptPersistence(receipt);
-        var service = new ReceiptService(
-            new FakeImageStorage(),
-            persistence,
-            new FakeOcrService(),
-            [new LidlReceiptParser()],
-            NullLogger<ReceiptService>.Instance);
-
-        var result = await service.ParseAsync(receipt.Id);
-
-        Assert.NotNull(result);
-        Assert.Equal("8466", receipt.ReceiptNumber);
-        Assert.Equal(68.82m, receipt.TotalAmount);
-        Assert.Equal(25, receipt.Items.Count);
-        Assert.All(receipt.Items, item => Assert.Null(item.ProductId));
-        Assert.Equal(6, receipt.Items.Sum(item => item.Adjustments.Count));
-        Assert.Equal(1.43m, receipt.Items.Single(item => item.ParsedName == "Banane lose").TotalPrice);
-    }
-
-    private sealed class FakeImageStorage : IReceiptImageStorage
-    {
-        public Task<string> SaveAsync(Stream stream, string fileName, CancellationToken cancellationToken = default) =>
-            Task.FromResult("unused");
-
-        public Task<Stream> OpenReadAsync(string imagePath, CancellationToken cancellationToken = default) =>
-            Task.FromResult<Stream>(new MemoryStream());
-    }
-
-    private sealed class FakeOcrService : IOcrService
-    {
-        public Task<string> ExtractTextAsync(Stream imageStream, CancellationToken cancellationToken = default) =>
-            Task.FromResult(string.Empty);
-    }
-
-    private sealed class FakeReceiptPersistence(Receipt receipt) : IReceiptPersistence
-    {
-        public Task AddAsync(Receipt newReceipt, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task<Receipt?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult<Receipt?>(receipt.Id == id ? receipt : null);
-
-        public Task<Receipt?> GetDetailsByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult<Receipt?>(receipt.Id == id ? receipt : null);
-
-        public Task SaveRawOcrTextAsync(Guid id, string rawOcrText, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-
-        public Task SaveParsedReceiptAsync(Receipt parsedReceipt, bool force, CancellationToken cancellationToken = default)
-        {
-            receipt.ReceiptNumber = parsedReceipt.ReceiptNumber;
-            receipt.PurchaseDate = parsedReceipt.PurchaseDate;
-            receipt.TotalAmount = parsedReceipt.TotalAmount;
-            receipt.Items = parsedReceipt.Items;
-            return Task.CompletedTask;
-        }
-    }
 }

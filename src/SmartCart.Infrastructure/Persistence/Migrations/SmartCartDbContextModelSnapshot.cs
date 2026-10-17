@@ -79,12 +79,6 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                     b.Property<string>("Brand")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Category")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<string>("Ean")
                         .HasColumnType("nvarchar(450)");
 
@@ -129,116 +123,6 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                     b.ToTable("ProductAliases");
                 });
 
-            modelBuilder.Entity("SmartCart.Domain.Entities.Receipt", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("ImagePath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("PurchaseDate")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("RawOcrText")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReceiptNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Retailer")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("StoreNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("TotalAmount")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PurchaseDate");
-
-                    b.ToTable("Receipts");
-                });
-
-            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("Confidence")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("decimal(5,4)");
-
-                    b.Property<string>("OriginalText")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ParsedName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("ProductId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("Quantity")
-                        .HasPrecision(10, 3)
-                        .HasColumnType("decimal(10,3)");
-
-                    b.Property<Guid>("ReceiptId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("TotalPrice")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<string>("Unit")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("UnitPrice")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ReceiptId");
-
-                    b.ToTable("ReceiptItems");
-                });
-
-            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItemAdjustment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("ReceiptItemId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReceiptItemId");
-
-                    b.ToTable("ReceiptItemAdjustments");
-                });
-
             modelBuilder.Entity("SmartCart.Domain.Entities.ProductAlias", b =>
                 {
                     b.HasOne("SmartCart.Domain.Entities.Product", "Product")
@@ -250,49 +134,9 @@ namespace SmartCart.Infrastructure.Persistence.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItem", b =>
-                {
-                    b.HasOne("SmartCart.Domain.Entities.Product", "Product")
-                        .WithMany("ReceiptItems")
-                        .HasForeignKey("ProductId");
-
-                    b.HasOne("SmartCart.Domain.Entities.Receipt", "Receipt")
-                        .WithMany("Items")
-                        .HasForeignKey("ReceiptId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("Receipt");
-                });
-
-            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItemAdjustment", b =>
-                {
-                    b.HasOne("SmartCart.Domain.Entities.ReceiptItem", "ReceiptItem")
-                        .WithMany("Adjustments")
-                        .HasForeignKey("ReceiptItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReceiptItem");
-                });
-
             modelBuilder.Entity("SmartCart.Domain.Entities.Product", b =>
                 {
                     b.Navigation("Aliases");
-
-                    b.Navigation("ReceiptItems");
-                });
-
-            modelBuilder.Entity("SmartCart.Domain.Entities.Receipt", b =>
-                {
-                    b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("SmartCart.Domain.Entities.ReceiptItem", b =>
-                {
-                    b.Navigation("Adjustments");
                 });
 #pragma warning restore 612, 618
         }

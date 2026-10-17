@@ -10,13 +10,7 @@ public class Product
 
     public string? NormalizedName { get; set; }
 
-    public string? Category { get; set; }
-
     public string? Ean { get; set; }
 
-    public DateTimeOffset CreatedAt { get; set; }
-
     public ICollection<ProductAlias> Aliases { get; set; } = new List<ProductAlias>();
-
-    public ICollection<ReceiptItem> ReceiptItems { get; set; } = new List<ReceiptItem>();
 }
