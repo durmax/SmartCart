@@ -19,6 +19,15 @@ public sealed class ReceiptPersistence(SmartCartDbContext dbContext) : IReceiptP
             .FirstOrDefaultAsync(receipt => receipt.Id == id, cancellationToken);
     }
 
+    public Task<Receipt?> GetDetailsByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return dbContext.Receipts
+            .AsNoTracking()
+            .Include(receipt => receipt.Items)
+            .ThenInclude(item => item.Adjustments)
+            .FirstOrDefaultAsync(receipt => receipt.Id == id, cancellationToken);
+    }
+
     public async Task SaveRawOcrTextAsync(
         Guid id,
         string rawOcrText,

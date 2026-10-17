@@ -60,6 +60,48 @@ public sealed class ReceiptService(
         return receipt is null ? null : ToResult(receipt);
     }
 
+    public async Task<ReceiptDetailsResult?> GetDetailsByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var receipt = await receiptPersistence.GetDetailsByIdAsync(id, cancellationToken);
+        if (receipt is null)
+        {
+            return null;
+        }
+
+        return new ReceiptDetailsResult
+        {
+            Id = receipt.Id,
+            Retailer = receipt.Retailer,
+            ReceiptNumber = receipt.ReceiptNumber,
+            PurchaseDate = receipt.PurchaseDate,
+            TotalAmount = receipt.TotalAmount,
+            StoreNumber = receipt.StoreNumber,
+            ImagePath = receipt.ImagePath,
+            CreatedAt = receipt.CreatedAt,
+            RawOcrText = receipt.RawOcrText,
+            Items = receipt.Items.Select(item => new ReceiptItemDetailsResult
+            {
+                Id = item.Id,
+                OriginalText = item.OriginalText,
+                ParsedName = item.ParsedName,
+                Quantity = item.Quantity,
+                Unit = item.Unit,
+                UnitPrice = item.UnitPrice,
+                TotalPrice = item.TotalPrice,
+                ProductId = item.ProductId,
+                Confidence = item.Confidence,
+                Adjustments = item.Adjustments.Select(adjustment => new ReceiptItemAdjustmentDetailsResult
+                {
+                    Id = adjustment.Id,
+                    Description = adjustment.Description,
+                    Amount = adjustment.Amount
+                }).ToList()
+            }).ToList()
+        };
+    }
+
     public async Task<string?> ProcessOcrAsync(
         Guid receiptId,
         bool force = false,

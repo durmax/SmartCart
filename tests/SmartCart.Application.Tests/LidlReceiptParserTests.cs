@@ -155,6 +155,9 @@ TA-Nr. 247453             Beleg-Nr. 8466
         public Task<Receipt?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
             Task.FromResult<Receipt?>(receipt.Id == id ? receipt : null);
 
+        public Task<Receipt?> GetDetailsByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Receipt?>(receipt.Id == id ? receipt : null);
+
         public Task SaveRawOcrTextAsync(Guid id, string rawOcrText, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 

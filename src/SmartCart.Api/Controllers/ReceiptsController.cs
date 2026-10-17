@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SmartCart.Api.Models;
+using SmartCart.Application.Receipts;
 using SmartCart.Application.Services;
 
 namespace SmartCart.Api.Controllers;
@@ -79,6 +80,17 @@ public sealed class ReceiptsController(IReceiptService receiptService) : Control
         CancellationToken cancellationToken)
     {
         var result = await receiptService.GetByIdAsync(id, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("{id:guid}/details")]
+    [ProducesResponseType<ReceiptDetailsResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ReceiptDetailsResult>> GetDetailsAsync(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await receiptService.GetDetailsByIdAsync(id, cancellationToken);
         return result is null ? NotFound() : Ok(result);
     }
 

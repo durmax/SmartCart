@@ -109,6 +109,148 @@ public class ReceiptServiceTests
         Assert.Equal(0, ocrService.CallCount);
     }
 
+    [Fact]
+    public async Task GetDetailsByIdAsync_ReceiptWithItemsAndAdjustments_ReturnsPersistedValues()
+    {
+        var receipt = CreateReceipt();
+        receipt.ReceiptNumber = "8466";
+        receipt.PurchaseDate = new DateTimeOffset(2026, 10, 13, 14, 23, 0, TimeSpan.Zero);
+        receipt.TotalAmount = 68.82m;
+        receipt.StoreNumber = "123";
+        receipt.RawOcrText = "persisted OCR text";
+
+        var firstItem = new ReceiptItem
+        {
+            Id = Guid.NewGuid(),
+            ReceiptId = receipt.Id,
+            Receipt = receipt,
+            OriginalText = "Banane lose 1,43 A",
+            ParsedName = "Banane lose",
+            Quantity = 1.106m,
+            Unit = "kg",
+            UnitPrice = 1.29m,
+            TotalPrice = 1.43m,
+            ProductId = Guid.NewGuid(),
+            Confidence = 0.9876m
+        };
+        firstItem.Adjustments.Add(new ReceiptItemAdjustment
+        {
+            Id = Guid.NewGuid(),
+            ReceiptItemId = firstItem.Id,
+            ReceiptItem = firstItem,
+            Description = "Preisvorteil",
+            Amount = -0.10m
+        });
+        firstItem.Adjustments.Add(new ReceiptItemAdjustment
+        {
+            Id = Guid.NewGuid(),
+            ReceiptItemId = firstItem.Id,
+            ReceiptItem = firstItem,
+            Description = "Lidl Plus Rabatt",
+            Amount = -0.20m
+        });
+
+        var secondItem = new ReceiptItem
+        {
+            Id = Guid.NewGuid(),
+            ReceiptId = receipt.Id,
+            Receipt = receipt,
+            OriginalText = "Birnen 2,29 A",
+            ParsedName = "Birnen",
+            Quantity = 2m,
+            Unit = "piece",
+            UnitPrice = 1.145m,
+            TotalPrice = 2.29m
+        };
+        secondItem.Adjustments.Add(new ReceiptItemAdjustment
+        {
+            Id = Guid.NewGuid(),
+            ReceiptItemId = secondItem.Id,
+            ReceiptItem = secondItem,
+            Description = "Sonderangebot",
+            Amount = -0.15m
+        });
+        receipt.Items = [firstItem, secondItem];
+
+        var ocrService = new FakeOcrService("must not run");
+        var persistence = new FakeReceiptPersistence(receipt);
+        var service = CreateService(
+            new FakeReceiptImageStorage("receipts/receipt.png"),
+            persistence,
+            ocrService);
+
+        var result = await service.GetDetailsByIdAsync(receipt.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(receipt.Id, result.Id);
+        Assert.Equal("Lidl", result.Retailer);
+        Assert.Equal("8466", result.ReceiptNumber);
+        Assert.Equal(receipt.PurchaseDate, result.PurchaseDate);
+        Assert.Equal(68.82m, result.TotalAmount);
+        Assert.Equal("123", result.StoreNumber);
+        Assert.Equal(receipt.ImagePath, result.ImagePath);
+        Assert.Equal(receipt.CreatedAt, result.CreatedAt);
+        Assert.Equal("persisted OCR text", result.RawOcrText);
+        Assert.Equal(2, result.Items.Count);
+
+        var mappedFirstItem = result.Items[0];
+        Assert.Equal(firstItem.Id, mappedFirstItem.Id);
+        Assert.Equal("Banane lose 1,43 A", mappedFirstItem.OriginalText);
+        Assert.Equal("Banane lose", mappedFirstItem.ParsedName);
+        Assert.Equal(1.106m, mappedFirstItem.Quantity);
+        Assert.Equal("kg", mappedFirstItem.Unit);
+        Assert.Equal(1.29m, mappedFirstItem.UnitPrice);
+        Assert.Equal(1.43m, mappedFirstItem.TotalPrice);
+        Assert.Equal(firstItem.ProductId, mappedFirstItem.ProductId);
+        Assert.Equal(0.9876m, mappedFirstItem.Confidence);
+        Assert.Collection(
+            mappedFirstItem.Adjustments,
+            adjustment =>
+            {
+                Assert.Equal("Preisvorteil", adjustment.Description);
+                Assert.Equal(-0.10m, adjustment.Amount);
+            },
+            adjustment =>
+            {
+                Assert.Equal("Lidl Plus Rabatt", adjustment.Description);
+                Assert.Equal(-0.20m, adjustment.Amount);
+            });
+
+        Assert.Equal("Birnen", result.Items[1].ParsedName);
+        Assert.Single(result.Items[1].Adjustments);
+        Assert.Equal(0, ocrService.CallCount);
+    }
+
+    [Fact]
+    public async Task GetDetailsByIdAsync_ReceiptWithoutParsedItems_ReturnsEmptyItems()
+    {
+        var receipt = CreateReceipt();
+        var ocrService = new FakeOcrService("must not run");
+        var service = CreateService(
+            new FakeReceiptImageStorage("receipts/receipt.png"),
+            new FakeReceiptPersistence(receipt),
+            ocrService);
+
+        var result = await service.GetDetailsByIdAsync(receipt.Id);
+
+        Assert.NotNull(result);
+        Assert.Empty(result.Items);
+        Assert.Equal(0, ocrService.CallCount);
+    }
+
+    [Fact]
+    public async Task GetDetailsByIdAsync_MissingReceipt_ReturnsNull()
+    {
+        var service = CreateService(
+            new FakeReceiptImageStorage("receipts/receipt.png"),
+            new FakeReceiptPersistence(),
+            new FakeOcrService("must not run"));
+
+        var result = await service.GetDetailsByIdAsync(Guid.NewGuid());
+
+        Assert.Null(result);
+    }
+
     private static Receipt CreateReceipt() => new()
     {
         Id = Guid.NewGuid(),
@@ -181,6 +323,12 @@ public class ReceiptServiceTests
         }
 
         public Task<Receipt?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var receipt = AddedReceipt ?? _initialReceipt;
+            return Task.FromResult(receipt?.Id == id ? receipt : null);
+        }
+
+        public Task<Receipt?> GetDetailsByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var receipt = AddedReceipt ?? _initialReceipt;
             return Task.FromResult(receipt?.Id == id ? receipt : null);
