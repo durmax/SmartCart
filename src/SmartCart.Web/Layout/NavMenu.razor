@@ -1,0 +1,20 @@
+﻿<header class="brand-panel">
+    <a class="brand" href="">SmartCart</a>
+    <span class="brand-caption">Your shopping, made simpler</span>
+    <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="@(!collapseNavMenu)" @onclick="ToggleNavMenu">☰</button>
+</header>
+
+<nav class="app-nav @(collapseNavMenu ? "collapsed" : null)" aria-label="Main navigation">
+    <NavLink class="nav-link" href="" Match="NavLinkMatch.All" @onclick="CloseNavMenu">Overview</NavLink>
+    <NavLink class="nav-link" href="receipts" @onclick="CloseNavMenu">Import receipt</NavLink>
+    <NavLink class="nav-link" href="products" @onclick="CloseNavMenu">My products</NavLink>
+    <NavLink class="nav-link" href="planner" @onclick="CloseNavMenu">Shopping planner</NavLink>
+    <NavLink class="nav-link" href="settings" @onclick="CloseNavMenu">Settings</NavLink>
+</nav>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
+    private void CloseNavMenu() => collapseNavMenu = true;
+}

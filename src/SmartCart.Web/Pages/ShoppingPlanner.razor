@@ -1,0 +1,254 @@
+@page "/planner"
+@using SmartCart.Domain.Entities
+@inject ProductCatalogService Catalog
+@inject ShoppingListService ShoppingList
+@inject DemoOfferCatalogService OfferCatalog
+@inject IJSRuntime JS
+
+<PageTitle>Shopping planner | SmartCart</PageTitle>
+
+<header class="page-heading">
+    <p class="eyebrow">YOUR NEXT TRIP</p>
+    <h1>Shopping planner</h1>
+    <p>Your upcoming-trip list is kept separately from your product catalog. Changing a list quantity does not change a saved product.</p>
+</header>
+
+@if (!string.IsNullOrWhiteSpace(_message))
+{
+    <p class="notice" role="status">@_message</p>
+}
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <p class="error-message" role="alert">@_error</p>
+}
+
+<div class="planner-grid">
+    <section class="panel">
+        <h2>Add saved products</h2>
+        @if (_products.Count == 0)
+        {
+            <p>No saved products yet. Add products in <a class="inline-link" href="products">My products</a> or import a receipt.</p>
+        }
+        else
+        {
+            <label class="sr-only" for="planner-search">Search saved products</label>
+            <input id="planner-search" class="text-input planner-search" placeholder="Find a product" @bind="_searchText" @bind:event="oninput" />
+            <ul class="planner-products">
+                @foreach (var product in FilteredProducts)
+                {
+                    <li @key="product.Id">
+                        <div>
+                            <strong>@product.Name</strong>
+                            <span>@(product.Brand ?? "") @FormatUsualQuantity(product)</span>
+                        </div>
+                        <button class="button button-secondary" type="button" @onclick="() => AddProductAsync(product)">Add</button>
+                    </li>
+                }
+            </ul>
+        }
+
+        <hr />
+        <h2>Add a one-time item</h2>
+        <div class="manual-item-form">
+            <label>Product <input class="text-input" @bind="_manualName" /></label>
+            <label>Quantity <input class="text-input" type="number" min="0.001" step="0.1" @bind="_manualQuantity" /></label>
+            <label>Unit <input class="text-input" @bind="_manualUnit" /></label>
+            <button class="button button-primary" type="button" @onclick="AddManualItemAsync">Add item</button>
+        </div>
+    </section>
+
+    <section class="panel shopping-list-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">UPCOMING SHOPPING LIST</p>
+                <h2>Items to buy <span class="count-badge">@_items.Count</span></h2>
+            </div>
+            @if (_items.Count > 0)
+            {
+                <button class="text-button danger-button" type="button" @onclick="ClearListAsync">Clear list</button>
+            }
+        </div>
+        @if (_items.Count == 0)
+        {
+            <p>Your list is empty. Add products from your catalog or enter a one-time item.</p>
+        }
+        else
+        {
+            <ul class="shopping-items">
+                @foreach (var item in _items.OrderBy(item => item.ProductName, StringComparer.OrdinalIgnoreCase))
+                {
+                    <li @key="item.Id">
+                        <div class="shopping-item-name">
+                            <strong>@item.ProductName</strong>
+                            @if (item.ProductId is null)
+                            {
+                                <span class="one-time-label">One-time item</span>
+                            }
+                        </div>
+                        <div class="shopping-item-actions">
+                            <input class="text-input quantity-input" aria-label="Quantity for @item.ProductName" type="number" min="0.001" step="0.1" value="@item.Quantity" @onchange="args => UpdateQuantityAsync(item, args.Value?.ToString())" />
+                            <span>@item.Unit</span>
+                            <button class="text-button danger-button" type="button" aria-label="Remove @item.ProductName" @onclick="() => RemoveItemAsync(item)">Remove</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+</div>
+
+<section class="panel offer-demo-panel">
+    <p class="eyebrow">RETAILER OFFER STATUS</p>
+    <h2>Offer examples</h2>
+    <p class="offer-demo-label">@DemoOfferCatalogService.SourceLabel</p>
+    <p>@DemoOfferCatalogService.Limitation</p>
+    @if (_demoOffers.Count == 0)
+    {
+        <p>No sample offers are available in this session.</p>
+    }
+    else
+    {
+        <ul class="demo-offer-list">
+            @foreach (var offer in _demoOffers)
+            {
+                <li @key="offer.Id">
+                    <span><strong>@offer.Name</strong><small>@offer.Retailer · no verified source or validity period</small></span>
+                    <span class="demo-price">@FormatDemoPrice(offer.OfferPrice)</span>
+                </li>
+            }
+        </ul>
+    }
+    <p class="hint">These examples are not current offers and are never included in best-price results. Retailer prices, restrictions, and stock are not verified.</p>
+</section>
+
+@code {
+    private readonly List<PersonalProduct> _products = [];
+    private readonly List<ShoppingListItem> _items = [];
+    private readonly List<Offer> _demoOffers = [];
+    private string _searchText = string.Empty;
+    private string _manualName = string.Empty;
+    private decimal _manualQuantity = 1;
+    private string _manualUnit = "piece";
+    private string? _message;
+    private string? _error;
+
+    private IEnumerable<PersonalProduct> FilteredProducts => _products
+        .Where(product => string.IsNullOrWhiteSpace(_searchText) || product.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(product => product.Name, StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _products.AddRange(await Catalog.GetAllAsync());
+            _items.AddRange(await ShoppingList.GetAllAsync());
+            _demoOffers.AddRange(await OfferCatalog.GetOffersAsync());
+        }
+        catch (Exception)
+        {
+            _error = "Could not load browser-local shopping data.";
+        }
+    }
+
+    private async Task AddProductAsync(PersonalProduct product)
+    {
+        try
+        {
+            var item = await ShoppingList.AddProductAsync(product);
+            if (_items.All(existing => existing.Id != item.Id))
+            {
+                _items.Add(item);
+                _message = $"Added {product.Name} to this trip.";
+            }
+            else
+            {
+                _message = $"{product.Name} is already on this list.";
+            }
+        }
+        catch (Exception)
+        {
+            _error = "Could not add the product to this shopping list.";
+        }
+    }
+
+    private async Task AddManualItemAsync()
+    {
+        _error = null;
+        try
+        {
+            var item = await ShoppingList.AddManualAsync(_manualName, _manualQuantity, _manualUnit);
+            _items.Add(item);
+            _manualName = string.Empty;
+            _manualQuantity = 1;
+            _manualUnit = "piece";
+            _message = "One-time item added to this trip.";
+        }
+        catch (ArgumentException exception)
+        {
+            _error = exception.Message;
+        }
+        catch (Exception)
+        {
+            _error = "Could not add the one-time item.";
+        }
+    }
+
+    private async Task UpdateQuantityAsync(ShoppingListItem item, string? value)
+    {
+        if (!decimal.TryParse(value, out var quantity) || quantity <= 0)
+        {
+            _error = "Quantity must be greater than zero.";
+            return;
+        }
+
+        try
+        {
+            await ShoppingList.UpdateQuantityAsync(item.Id, quantity);
+            item.Quantity = quantity;
+            _error = null;
+        }
+        catch (Exception)
+        {
+            _error = "Could not update this shopping quantity.";
+        }
+    }
+
+    private async Task RemoveItemAsync(ShoppingListItem item)
+    {
+        try
+        {
+            await ShoppingList.DeleteAsync(item.Id);
+            _items.RemoveAll(existing => existing.Id == item.Id);
+            _message = $"Removed {item.ProductName} from this trip. Your product catalog is unchanged.";
+        }
+        catch (Exception)
+        {
+            _error = "Could not remove this shopping item.";
+        }
+    }
+
+    private async Task ClearListAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Clear the shopping list for this trip? Saved products will not be affected."))
+        {
+            return;
+        }
+
+        try
+        {
+            await ShoppingList.ClearAsync();
+            _items.Clear();
+            _message = "Shopping list cleared. Your product catalog is unchanged.";
+        }
+        catch (Exception)
+        {
+            _error = "Could not clear the shopping list.";
+        }
+    }
+
+    private static string FormatUsualQuantity(PersonalProduct product) =>
+        product.UsualQuantity is null ? "" : $"· usual {product.UsualQuantity}";
+
+    private static string FormatDemoPrice(decimal? price) =>
+        price?.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("de-DE")) ?? "Not supplied";
+}

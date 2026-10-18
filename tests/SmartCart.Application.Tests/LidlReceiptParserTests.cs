@@ -1,4 +1,4 @@
-using SmartCart.Infrastructure.Receipts.Lidl;
+using SmartCart.Application.Receipts.Lidl;
 
 namespace SmartCart.Application.Tests;
 
@@ -67,20 +67,20 @@ TA-Nr. 247453             Beleg-Nr. 8466
         Assert.Equal(new DateTimeOffset(2026, 10, 13, 14, 23, 0, TimeSpan.Zero), result.PurchaseDate);
         Assert.Equal(25, result.Items.Count);
 
-        var banana = Assert.Single(result.Items.Where(item => item.ParsedName == "Banane lose"));
+        var banana = Assert.Single(result.Items, item => item.ParsedName == "Banane lose");
         Assert.Equal(1.106m, banana.Quantity);
         Assert.Equal("kg", banana.Unit);
         Assert.Equal(1.29m, banana.UnitPrice);
         Assert.Equal(1.43m, banana.TotalPrice);
         Assert.Contains("1,106 kg x 1,29   EUR/kg", banana.OriginalText);
 
-        var salami = Assert.Single(result.Items.Where(item => item.ParsedName == "SalamiSsticks Classic"));
+        var salami = Assert.Single(result.Items, item => item.ParsedName == "SalamiSsticks Classic");
         Assert.Equal(2m, salami.Quantity);
         Assert.Equal("piece", salami.Unit);
         Assert.Equal(1.89m, salami.UnitPrice);
         Assert.Equal(3.78m, salami.TotalPrice);
 
-        var chicken = Assert.Single(result.Items.Where(item => item.ParsedName == "Hähnchenbr. Jalapeno"));
+        var chicken = Assert.Single(result.Items, item => item.ParsedName == "Hähnchenbr. Jalapeno");
         Assert.Equal(1.49m, chicken.TotalPrice);
         Assert.Collection(
             chicken.Adjustments,
@@ -99,6 +99,34 @@ TA-Nr. 247453             Beleg-Nr. 8466
             item.ParsedName is not null &&
             new[] { "MWST", "TSE", "Kartenzahlung", "Lidl Plus Angebote" }
                 .Contains(item.ParsedName, StringComparer.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Parse_IncompleteOcrWithoutProductSection_ReturnsNoItems()
+    {
+        var result = new LidlReceiptParser().Parse("LIDL\nBanane lose 1,43 A\nzu zahlen 1,43");
+
+        Assert.Empty(result.Items);
+        Assert.Equal(1.43m, result.TotalAmount);
+    }
+
+    [Fact]
+    public void Parse_DuplicateAndUnknownProducts_PreservesSeparateReceiptLines()
+    {
+        const string rawText = """
+LIDL
+EUR
+Milch 1,20 A
+Milch 1,20 A
+Unbekanntes Produkt 2,00 B
+zu zahlen 4,40
+""";
+
+        var result = new LidlReceiptParser().Parse(rawText);
+
+        Assert.Equal(3, result.Items.Count);
+        Assert.Equal(2, result.Items.Count(item => item.ParsedName == "Milch"));
+        Assert.Contains(result.Items, item => item.ParsedName == "Unbekanntes Produkt");
     }
 
 }

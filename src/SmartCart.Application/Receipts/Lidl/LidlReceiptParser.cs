@@ -1,9 +1,8 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using SmartCart.Application.Abstractions;
-using SmartCart.Application.Receipts;
 
-namespace SmartCart.Infrastructure.Receipts.Lidl;
+namespace SmartCart.Application.Receipts.Lidl;
 
 public sealed class LidlReceiptParser : IReceiptParser
 {

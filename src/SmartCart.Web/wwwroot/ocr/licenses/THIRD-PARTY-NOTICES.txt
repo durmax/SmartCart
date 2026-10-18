@@ -1,0 +1,15 @@
+SmartCart includes the following browser OCR assets. They are loaded from this application origin only.
+
+Tesseract.js 7.0.0
+- License declared by npm package metadata: Apache-2.0.
+- https://github.com/naptha/tesseract.js
+
+Tesseract.js Core 7.0.0
+- License: Apache-2.0. The license text is included as tesseract.js-core-LICENSE.txt.
+- https://github.com/naptha/tesseract.js-core
+
+German trained data, @tesseract.js-data/deu 1.0.0 (Tesseract 4.0.0 data)
+- License declared by npm package metadata: MIT.
+- https://github.com/naptha/tessdata
+
+Bundled dependency notices for the minified runtime and worker are in their adjacent *-LICENSE.txt files. OCR models and runtime assets are not receipt data; receipt images and recognized text are not written to browser storage by SmartCart.

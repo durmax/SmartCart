@@ -1,0 +1,317 @@
+@page "/products"
+@inject ProductCatalogService Catalog
+@inject IJSRuntime JS
+
+<PageTitle>My products | SmartCart</PageTitle>
+
+<header class="page-heading">
+    <p class="eyebrow">YOUR PERSONAL CATALOG</p>
+    <h1>My products</h1>
+    <p>Products are stored in this browser only. Clearing browser data may remove them.</p>
+</header>
+
+<div class="catalog-toolbar">
+    <label class="sr-only" for="product-search">Search products</label>
+    <input id="product-search" class="text-input" placeholder="Search your products" @bind="_searchText" @bind:event="oninput" />
+    <button class="button button-primary" type="button" @onclick="StartAdd">Add product</button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(_message))
+{
+    <p class="notice" role="status">@_message</p>
+}
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <p class="error-message" role="alert">@_error</p>
+}
+
+@if (_isEditing)
+{
+    <section class="panel product-form-panel">
+        <h2>@(_form.Id == Guid.Empty ? "Add a product" : "Edit product")</h2>
+        <EditForm Model="_form" OnValidSubmit="SaveProductAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="form-grid">
+                <label>Product name <InputText @bind-Value="_form.Name" /></label>
+                <label>Brand <InputText @bind-Value="_form.Brand" /></label>
+                <label>EAN <InputText @bind-Value="_form.Ean" /></label>
+                <label>Usual quantity <InputNumber min="0.001" step="0.1" @bind-Value="_form.UsualQuantity" /></label>
+                <label>Package quantity <InputNumber min="0.001" step="0.001" @bind-Value="_form.PackageQuantity" /></label>
+                <label>Package unit <InputText placeholder="g, kg, ml, L, piece" @bind-Value="_form.PackageUnit" /></label>
+            </div>
+
+            <fieldset class="alias-editor">
+                <legend>Product aliases</legend>
+                @if (_form.Aliases.Count > 0)
+                {
+                    <ul class="alias-list">
+                        @foreach (var alias in _form.Aliases)
+                        {
+                            <li @key="alias.Id">
+                                <span>@alias.Alias (@(alias.Retailer ?? "Any retailer"))</span>
+                                <button type="button" class="text-button" aria-label="Remove alias" @onclick="() => RemoveAlias(alias.Id)">Remove</button>
+                            </li>
+                        }
+                    </ul>
+                }
+                <div class="alias-add-row">
+                    <label>Alias <input @bind="_aliasName" /></label>
+                    <label>Retailer <input placeholder="Optional" @bind="_aliasRetailer" /></label>
+                    <button class="button button-secondary" type="button" @onclick="AddAlias">Add alias</button>
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <button class="button button-primary" type="submit" disabled="_isSaving">Save product</button>
+                <button class="button button-secondary" type="button" @onclick="CancelEdit">Cancel</button>
+            </div>
+        </EditForm>
+    </section>
+}
+
+<section class="panel">
+    @if (_isLoading)
+    {
+        <p>Loading locally saved products…</p>
+    }
+    else if (!FilteredProducts.Any())
+    {
+        <p>@(_products.Count == 0 ? "No products saved yet. Add one manually or import a receipt." : "No products match your search.")</p>
+    }
+    else
+    {
+        <div class="review-table-wrap">
+            <table class="review-table product-table">
+                <thead>
+                    <tr><th>Product</th><th>Brand</th><th>Usual quantity</th><th>Package</th><th>Aliases</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var product in FilteredProducts)
+                    {
+                        <tr @key="product.Id">
+                            <td>@product.Name</td>
+                            <td>@(product.Brand ?? "—")</td>
+                            <td>@(product.UsualQuantity?.ToString() ?? "—")</td>
+                            <td>@FormatPackage(product)</td>
+                            <td>@(product.Aliases.Count == 0 ? "—" : string.Join(", ", product.Aliases.Select(alias => alias.Alias)))</td>
+                            <td class="table-actions">
+                                <button class="text-button" type="button" @onclick="() => StartEdit(product)">Edit</button>
+                                <button class="text-button danger-button" type="button" @onclick="() => DeleteProductAsync(product)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private readonly List<PersonalProduct> _products = [];
+    private readonly ProductForm _form = new();
+    private string _searchText = string.Empty;
+    private string _aliasName = string.Empty;
+    private string _aliasRetailer = string.Empty;
+    private string? _message;
+    private string? _error;
+    private bool _isLoading = true;
+    private bool _isEditing;
+    private bool _isSaving;
+
+    private IEnumerable<PersonalProduct> FilteredProducts => _products
+        .Where(product => string.IsNullOrWhiteSpace(_searchText) ||
+            product.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+            (product.Brand?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            product.Aliases.Any(alias => alias.Alias.Contains(_searchText, StringComparison.OrdinalIgnoreCase)))
+        .OrderBy(product => product.Name, StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync() => await LoadProductsAsync();
+
+    private async Task LoadProductsAsync()
+    {
+        _isLoading = true;
+        try
+        {
+            _products.Clear();
+            _products.AddRange(await Catalog.GetAllAsync());
+        }
+        catch (Exception)
+        {
+            _error = "Could not read products from this browser. Check whether site storage is available.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartAdd()
+    {
+        CopyToForm(new PersonalProduct { Id = Guid.Empty });
+        _message = null;
+        _error = null;
+        _isEditing = true;
+    }
+
+    private void StartEdit(PersonalProduct product)
+    {
+        CopyToForm(product);
+        _message = null;
+        _error = null;
+        _isEditing = true;
+    }
+
+    private void CopyToForm(PersonalProduct product)
+    {
+        _form.Id = product.Id;
+        _form.Name = product.Name;
+        _form.Brand = product.Brand;
+        _form.Ean = product.Ean;
+        _form.UsualQuantity = product.UsualQuantity;
+        _form.PackageQuantity = product.PackageQuantity;
+        _form.PackageUnit = product.PackageUnit;
+        _form.Aliases = product.Aliases.Select(alias => new PersonalProductAlias
+        {
+            Id = alias.Id,
+            Alias = alias.Alias,
+            Retailer = alias.Retailer
+        }).ToList();
+        _aliasName = string.Empty;
+        _aliasRetailer = string.Empty;
+    }
+
+    private async Task SaveProductAsync()
+    {
+        _isSaving = true;
+        _error = null;
+        try
+        {
+            var product = new PersonalProduct
+            {
+                Id = _form.Id,
+                Name = _form.Name,
+                Brand = _form.Brand,
+                Ean = _form.Ean,
+                UsualQuantity = _form.UsualQuantity,
+                PackageQuantity = _form.PackageQuantity,
+                PackageUnit = _form.PackageUnit,
+                Aliases = _form.Aliases
+            };
+            var result = await Catalog.SaveAsync(product);
+            if (result.Status == ProductSaveStatus.ExistingProductFound)
+            {
+                _message = $"A matching product is already saved as '{result.ExistingProduct?.Name}'. Edit that product instead.";
+                return;
+            }
+
+            if (result.Status == ProductSaveStatus.ReviewRequired)
+            {
+                var candidate = result.Candidates?.FirstOrDefault();
+                if (candidate is not null)
+                {
+                    var useExisting = await JS.InvokeAsync<bool>("confirm", $"'{candidate.Name}' may be the same product. Edit that product instead?");
+                    if (useExisting)
+                    {
+                        StartEdit(candidate);
+                        return;
+                    }
+
+                    var createSeparate = await JS.InvokeAsync<bool>("confirm", "Create a separate product despite the similar match?");
+                    if (!createSeparate)
+                    {
+                        return;
+                    }
+
+                    await Catalog.SaveAsync(product, createSeparateAfterReview: true);
+                }
+            }
+            else if (result.Status != ProductSaveStatus.Saved)
+            {
+                return;
+            }
+
+            _isEditing = false;
+            _message = "Product saved in this browser.";
+            await LoadProductsAsync();
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidDataException)
+        {
+            _error = exception.Message;
+        }
+        catch (Exception)
+        {
+            _error = "Could not save the product to this browser.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void AddAlias()
+    {
+        if (string.IsNullOrWhiteSpace(_aliasName))
+        {
+            return;
+        }
+
+        var alias = new PersonalProductAlias
+        {
+            Alias = _aliasName.Trim(),
+            Retailer = string.IsNullOrWhiteSpace(_aliasRetailer) ? null : _aliasRetailer.Trim()
+        };
+        if (!_form.Aliases.Any(existing =>
+            ProductMatcher.Normalize(existing.Alias) == ProductMatcher.Normalize(alias.Alias) &&
+            string.Equals(existing.Retailer, alias.Retailer, StringComparison.OrdinalIgnoreCase)))
+        {
+            _form.Aliases.Add(alias);
+        }
+
+        _aliasName = string.Empty;
+        _aliasRetailer = string.Empty;
+    }
+
+    private void RemoveAlias(Guid id) => _form.Aliases.RemoveAll(alias => alias.Id == id);
+
+    private void CancelEdit()
+    {
+        _isEditing = false;
+        _error = null;
+    }
+
+    private async Task DeleteProductAsync(PersonalProduct product)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Delete '{product.Name}' from this browser?"))
+        {
+            return;
+        }
+
+        try
+        {
+            await Catalog.DeleteAsync(product.Id);
+            _message = "Product deleted.";
+            await LoadProductsAsync();
+        }
+        catch (Exception)
+        {
+            _error = "Could not delete the product.";
+        }
+    }
+
+    private static string FormatPackage(PersonalProduct product) =>
+        product.PackageQuantity is null ? "—" : $"{product.PackageQuantity} {product.PackageUnit}";
+
+    private sealed class ProductForm
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Name { get; set; } = string.Empty;
+        public Guid Id { get; set; }
+        public string? Brand { get; set; }
+        public string? Ean { get; set; }
+        public decimal? UsualQuantity { get; set; }
+        public decimal? PackageQuantity { get; set; }
+        public string? PackageUnit { get; set; }
+        public List<PersonalProductAlias> Aliases { get; set; } = [];
+    }
+}

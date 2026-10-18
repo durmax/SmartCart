@@ -1,0 +1,359 @@
+@page "/receipts"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IReceiptParser ReceiptParser
+@inject ProductCatalogService Catalog
+
+<PageTitle>Import receipt | SmartCart</PageTitle>
+
+<header class="page-heading">
+    <p class="eyebrow">LOCAL RECEIPT IMPORT</p>
+    <h1>Import a Lidl receipt</h1>
+    <p>Choose a clear image of a Lidl receipt. OCR runs in this browser; the image and recognized text are not saved.</p>
+</header>
+
+<section class="panel receipt-upload">
+    <label for="receipt-image" class="field-label">Receipt image</label>
+    <InputFile id="receipt-image" OnChange="ProcessReceiptAsync" accept="image/jpeg,image/png,.jpg,.jpeg,.png" disabled="@_isProcessing" />
+    <p class="hint">JPEG or PNG, up to 12 MB. Large images are resized in memory before OCR.</p>
+
+    @if (_isProcessing)
+    {
+        <div class="ocr-status" role="status" aria-live="polite">
+            <span>@_status</span>
+            <progress max="100" value="@(_progress * 100)"></progress>
+            <span>@Math.Round(_progress * 100)%</span>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_status))
+    {
+        <p class="ocr-status" role="status">@_status</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <p class="error-message" role="alert">@_errorMessage</p>
+    }
+</section>
+
+@if (_hasReview)
+{
+    <section class="panel review-panel">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">CHECK BEFORE SAVING</p>
+                <h2>Recognized products</h2>
+            </div>
+            <button class="button button-secondary" type="button" @onclick="ClearReview">Discard review</button>
+        </div>
+
+        @if (_items.Count == 0)
+        {
+            <p>No product lines were confidently recognized. Try a sharper image with the receipt laid flat.</p>
+        }
+        else
+        {
+            <div class="review-table-wrap">
+                <table class="review-table">
+                    <thead>
+                        <tr><th>Use</th><th>Product name</th><th>Quantity</th><th>Unit</th><th>Review</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _items)
+                        {
+                            <tr @key="item.Id">
+                                <td><input type="checkbox" aria-label="Save product" @bind="item.Selected" disabled="@item.IsResolved" /></td>
+                                <td><input class="text-input" aria-label="Product name" @bind="item.Name" /></td>
+                                <td><input class="text-input quantity-input" aria-label="Quantity" type="number" min="0" step="0.001" @bind="item.Quantity" /></td>
+                                <td><input class="text-input unit-input" aria-label="Unit" @bind="item.Unit" /></td>
+                                <td>
+                                    @if (item.Candidates.Count > 0)
+                                    {
+                                        <div class="match-candidates">
+                                            <span>Possible match — choose one or create a separate product.</span>
+                                            @foreach (var candidate in item.Candidates)
+                                            {
+                                                <button class="text-button" type="button" @onclick="() => ConfirmExistingMatchAsync(item, candidate)">Use @candidate.Name</button>
+                                            }
+                                            <button class="text-button" type="button" @onclick="() => CreateSeparateProductAsync(item)">Create separate product</button>
+                                        </div>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(item.SaveMessage))
+                                    {
+                                        <span class="save-message">@item.SaveMessage</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="hint">Review the names and quantities carefully. Receipt data is kept only for this review and is not saved.</p>
+            <div class="form-actions">
+                <button class="button button-primary" type="button" disabled="@_isSavingProducts" @onclick="SaveSelectedProductsAsync">Save selected products locally</button>
+                @if (!string.IsNullOrWhiteSpace(_saveMessage))
+                {
+                    <span role="status">@_saveMessage</span>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private const long MaxReceiptBytes = 12 * 1024 * 1024;
+    private IJSObjectReference? _ocrModule;
+    private DotNetObjectReference<Receipts>? _progressReference;
+    private readonly List<ReviewItem> _items = [];
+    private bool _isProcessing;
+    private bool _isSavingProducts;
+    private bool _hasReview;
+    private double _progress;
+    private string _status = "Choose a JPEG or PNG image to begin.";
+    private string? _errorMessage;
+    private string? _saveMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _ocrModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/receiptOcr.js");
+            }
+            catch (JSException)
+            {
+                _errorMessage = "Local OCR could not be initialized in this browser.";
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task ProcessReceiptAsync(InputFileChangeEventArgs args)
+    {
+        _errorMessage = null;
+        _saveMessage = null;
+        _items.Clear();
+        _hasReview = false;
+        _progress = 0;
+
+        var file = args.File;
+        var extension = Path.GetExtension(file.Name);
+        var contentType = extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            ? "image/png"
+            : extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+                ? "image/jpeg"
+                : null;
+
+        if (contentType is null)
+        {
+            _errorMessage = "Choose a JPEG or PNG image.";
+            return;
+        }
+
+        if (file.Size == 0 || file.Size > MaxReceiptBytes)
+        {
+            _errorMessage = "The image must be smaller than 12 MB.";
+            return;
+        }
+
+        if (_ocrModule is null)
+        {
+            _errorMessage = "Local OCR is not ready. Refresh the page and try again.";
+            return;
+        }
+
+        _isProcessing = true;
+        _status = "Preparing local OCR…";
+        _progressReference = DotNetObjectReference.Create(this);
+
+        try
+        {
+            await using var fileStream = file.OpenReadStream(MaxReceiptBytes);
+            using var streamReference = new DotNetStreamReference(fileStream, leaveOpen: true);
+            var rawText = await _ocrModule.InvokeAsync<string>("recognizeReceipt", streamReference, contentType, _progressReference);
+            var parsedReceipt = ReceiptParser.Parse(rawText);
+
+            _items.AddRange(parsedReceipt.Items.Select((item, index) => new ReviewItem
+            {
+                Id = index,
+                Name = item.ParsedName ?? string.Empty,
+                Quantity = item.Quantity,
+                Unit = item.Unit ?? "piece",
+                Selected = true
+            }));
+
+            _hasReview = true;
+            _status = $"OCR complete. {_items.Count} product line(s) found.";
+            _progress = 1;
+        }
+        catch (JSException exception) when (exception.Message.Contains("valid JPEG or PNG", StringComparison.OrdinalIgnoreCase))
+        {
+            _errorMessage = "The selected file contents do not match a JPEG or PNG image.";
+            _status = "Receipt processing stopped.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Receipt processing failed. Try a smaller, clearer image and try again.";
+            _status = "Receipt processing stopped.";
+        }
+        finally
+        {
+            _progressReference?.Dispose();
+            _progressReference = null;
+            _isProcessing = false;
+            if (_ocrModule is not null)
+            {
+                try
+                {
+                    await _ocrModule.InvokeVoidAsync("clearReceiptSelection");
+                }
+                catch (JSException)
+                {
+                }
+            }
+        }
+    }
+
+    [JSInvokable]
+    public Task ReportOcrProgress(string status, double progress)
+    {
+        _status = status;
+        _progress = Math.Clamp(progress, 0, 1);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void ClearReview()
+    {
+        _items.Clear();
+        _hasReview = false;
+        _saveMessage = null;
+        _status = "Review discarded. No receipt data was saved.";
+    }
+
+    private async Task SaveSelectedProductsAsync()
+    {
+        _isSavingProducts = true;
+        _errorMessage = null;
+        var savedCount = 0;
+        try
+        {
+            foreach (var item in _items.Where(item => item.Selected && item.Candidates.Count == 0 && !item.IsResolved))
+            {
+                if (string.IsNullOrWhiteSpace(item.Name))
+                {
+                    _errorMessage = "Enter a product name for every selected line.";
+                    continue;
+                }
+
+                var result = await Catalog.SaveAsync(new PersonalProduct { Name = item.Name });
+                if (result.Status == ProductSaveStatus.Saved)
+                {
+                    item.IsResolved = true;
+                    item.Selected = false;
+                    item.SaveMessage = "Saved locally";
+                    savedCount++;
+                }
+                else if (result.Status == ProductSaveStatus.ExistingProductFound)
+                {
+                    item.IsResolved = true;
+                    item.Selected = false;
+                    item.SaveMessage = $"Already saved as {result.ExistingProduct?.Name}";
+                }
+                else
+                {
+                    item.Candidates = result.Candidates?.ToList() ?? [];
+                }
+            }
+
+            _saveMessage = savedCount > 0
+                ? $"Saved {savedCount} product(s). Similar products need your review before they are added."
+                : "No new products were saved. Review any possible matches shown above.";
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Could not save products to this browser. Your receipt image and OCR text were not stored.";
+        }
+        finally
+        {
+            _isSavingProducts = false;
+        }
+    }
+
+    private async Task ConfirmExistingMatchAsync(ReviewItem item, PersonalProduct candidate)
+    {
+        if (!candidate.Aliases.Any(alias => ProductMatcher.Normalize(alias.Alias) == ProductMatcher.Normalize(item.Name) &&
+            string.Equals(alias.Retailer, "Lidl", StringComparison.OrdinalIgnoreCase)))
+        {
+            candidate.Aliases.Add(new PersonalProductAlias { Alias = item.Name.Trim(), Retailer = "Lidl" });
+        }
+
+        try
+        {
+            await Catalog.SaveAsync(candidate);
+            item.IsResolved = true;
+            item.Selected = false;
+            item.SaveMessage = $"Matched to {candidate.Name}";
+            item.Candidates.Clear();
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Could not save the selected product match.";
+        }
+    }
+
+    private async Task CreateSeparateProductAsync(ReviewItem item)
+    {
+        try
+        {
+            var result = await Catalog.SaveAsync(
+                new PersonalProduct { Name = item.Name },
+                createSeparateAfterReview: true);
+            if (result.Status == ProductSaveStatus.Saved)
+            {
+                item.IsResolved = true;
+                item.Selected = false;
+                item.Candidates.Clear();
+                item.SaveMessage = "Created as a separate product";
+            }
+            else if (result.Status == ProductSaveStatus.ExistingProductFound)
+            {
+                item.IsResolved = true;
+                item.Selected = false;
+                item.Candidates.Clear();
+                item.SaveMessage = $"Already saved as {result.ExistingProduct?.Name}";
+            }
+        }
+        catch (Exception)
+        {
+            _errorMessage = "Could not add this product to the local catalog.";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _progressReference?.Dispose();
+        if (_ocrModule is not null)
+        {
+            try
+            {
+                await _ocrModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+
+    private sealed class ReviewItem
+    {
+        public int Id { get; init; }
+        public string Name { get; set; } = string.Empty;
+        public decimal? Quantity { get; set; }
+        public string Unit { get; set; } = "piece";
+        public bool Selected { get; set; }
+        public bool IsResolved { get; set; }
+        public string? SaveMessage { get; set; }
+        public List<PersonalProduct> Candidates { get; set; } = [];
+    }
+}

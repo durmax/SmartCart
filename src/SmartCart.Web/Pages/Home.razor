@@ -1,0 +1,78 @@
+﻿@page "/"
+@inject ProductCatalogService Catalog
+@inject ShoppingListService ShoppingList
+
+<PageTitle>SmartCart overview</PageTitle>
+
+<section class="welcome-card">
+    <p class="eyebrow">SHOP SMARTER</p>
+    <h1>Make your next shop a little easier.</h1>
+    <p>Build a personal product list from Lidl receipts and keep your next trip organized on this device.</p>
+    <a class="button button-primary" href="receipts">Import a receipt</a>
+</section>
+
+<section class="summary-grid" aria-label="Browser-local summary">
+    <article class="summary-card">
+        <span class="card-kicker">MY PRODUCTS</span>
+        <strong>@(_storageAvailable ? _productCount.ToString() : "—")</strong>
+        <a href="products">Open product catalog</a>
+    </article>
+    <article class="summary-card">
+        <span class="card-kicker">NEXT SHOP</span>
+        <strong>@(_storageAvailable ? _shoppingItemCount.ToString() : "—")</strong>
+        <a href="planner">Open shopping planner</a>
+    </article>
+    <article class="summary-card offer-summary">
+        <span class="card-kicker">OFFER DATA</span>
+        <strong>Demo only</strong>
+        <span>No verified live retailer source is connected.</span>
+    </article>
+</section>
+
+<section class="privacy-note" aria-label="Privacy information">
+    <strong>Your data stays in this browser.</strong>
+    <span>Receipt images and OCR text are transient; only products you confirm and the upcoming shopping list are stored locally. Clearing browser data may remove them.</span>
+</section>
+
+<section class="offer-source-note" aria-label="Offer source limitation">
+    <strong>@DemoOfferCatalogService.SourceLabel</strong>
+    <span>@DemoOfferCatalogService.Limitation The official retailer pages checked do not provide verified browser API access for this app; sample prices are excluded from comparison claims.</span>
+</section>
+
+<section class="quick-links">
+    <a class="feature-card" href="products">
+        <span class="card-kicker">YOUR CATALOG</span>
+        <h2>My products</h2>
+        <p>Review and manage your personal product list.</p>
+    </a>
+    <a class="feature-card" href="planner">
+        <span class="card-kicker">NEXT SHOP</span>
+        <h2>Shopping planner</h2>
+        <p>Choose what you need for your upcoming trip.</p>
+    </a>
+    <a class="feature-card" href="settings">
+        <span class="card-kicker">YOUR DATA</span>
+        <h2>Settings</h2>
+        <p>Export, import, or clear browser-local product data.</p>
+    </a>
+</section>
+
+@code {
+    private int _productCount;
+    private int _shoppingItemCount;
+    private bool _storageAvailable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _productCount = (await Catalog.GetAllAsync()).Count;
+            _shoppingItemCount = (await ShoppingList.GetAllAsync()).Count;
+            _storageAvailable = true;
+        }
+        catch (Exception)
+        {
+            _storageAvailable = false;
+        }
+    }
+}

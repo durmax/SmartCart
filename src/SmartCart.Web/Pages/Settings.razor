@@ -1,0 +1,162 @@
+@page "/settings"
+@implements IAsyncDisposable
+@inject ProductCatalogService Catalog
+@inject ShoppingListService ShoppingList
+@inject IJSRuntime JS
+
+<PageTitle>Settings | SmartCart</PageTitle>
+
+<header class="page-heading">
+    <p class="eyebrow">BROWSER DATA</p>
+    <h1>Settings</h1>
+    <p>Manage the product catalog and upcoming shopping list stored in this browser.</p>
+</header>
+
+@if (!string.IsNullOrWhiteSpace(_message))
+{
+    <p class="notice" role="status">@_message</p>
+}
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <p class="error-message" role="alert">@_error</p>
+}
+
+<div class="settings-grid">
+    <section class="panel">
+        <h2>Back up your products</h2>
+        <p>Export or import your product names, aliases, EANs, and package attributes as JSON. Import replaces the saved product catalog; it does not import receipt images or history.</p>
+        <div class="form-actions">
+            <button class="button button-secondary" type="button" @onclick="ExportProductsAsync">Export products</button>
+            <label class="settings-file-label">
+                Import product JSON
+                <InputFile OnChange="ImportProductsAsync" accept="application/json,.json" />
+            </label>
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>Clear browser data</h2>
+        <p>This removes saved products and the upcoming shopping list from this browser. Receipt images and recognized receipt text are not stored by SmartCart.</p>
+        <button class="button button-secondary danger-button" type="button" @onclick="ClearBrowserDataAsync">Clear products and shopping list</button>
+    </section>
+</div>
+
+<section class="privacy-note" aria-label="Browser storage warning">
+    <strong>Storage is device- and browser-local.</strong>
+    <span>Clearing this site's browser data, using private browsing, or changing devices may remove your products and shopping list. Keep a JSON export if you need a backup.</span>
+</section>
+
+@code {
+    private const long MaxImportBytes = 2 * 1024 * 1024;
+    private IJSObjectReference? _browserModule;
+    private string? _message;
+    private string? _error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            _browserModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/indexedDbCatalog.js");
+        }
+        catch (JSException)
+        {
+            _error = "Browser file export could not be initialized.";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ExportProductsAsync()
+    {
+        _error = null;
+        try
+        {
+            var json = await Catalog.ExportJsonAsync();
+            if (_browserModule is null)
+            {
+                _error = "Browser file export is not available in this session.";
+                return;
+            }
+
+            await _browserModule.InvokeVoidAsync("downloadJson", json, "smartcart-products.json");
+            _message = "Product catalog exported to a JSON file.";
+        }
+        catch (Exception)
+        {
+            _error = "Could not export products from this browser.";
+        }
+    }
+
+    private async Task ImportProductsAsync(InputFileChangeEventArgs args)
+    {
+        _error = null;
+        _message = null;
+        var file = args.File;
+        if (file.Size == 0 || file.Size > MaxImportBytes)
+        {
+            _error = "Choose a non-empty JSON file no larger than 2 MB.";
+            return;
+        }
+
+        if (!await JS.InvokeAsync<bool>("confirm", "Importing replaces the product catalog currently stored in this browser. Continue?"))
+        {
+            return;
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxImportBytes);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            await Catalog.ImportJsonAsync(json);
+            _message = "Product catalog imported. Your upcoming shopping list was not changed.";
+        }
+        catch (InvalidDataException exception)
+        {
+            _error = exception.Message;
+        }
+        catch (Exception)
+        {
+            _error = "Could not import this product file. Existing products were not replaced if validation failed.";
+        }
+    }
+
+    private async Task ClearBrowserDataAsync()
+    {
+        _error = null;
+        _message = null;
+        if (!await JS.InvokeAsync<bool>("confirm", "Permanently clear saved products and the upcoming shopping list from this browser?"))
+        {
+            return;
+        }
+
+        try
+        {
+            await Catalog.ClearAsync();
+            await ShoppingList.ClearAsync();
+            _message = "Saved products and the upcoming shopping list were cleared from this browser.";
+        }
+        catch (Exception)
+        {
+            _error = "Could not clear all browser-local data. Check site storage and try again.";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_browserModule is not null)
+        {
+            try
+            {
+                await _browserModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}
