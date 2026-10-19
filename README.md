@@ -9,7 +9,7 @@ SmartCart is a .NET 10 Blazor WebAssembly standalone shopping assistant. The bro
 - Manage products, verified aliases, EANs, and package attributes in browser-local IndexedDB.
 - Maintain a separate upcoming shopping list; editing its quantities does not change the product catalog.
 - Export/import the product catalog as JSON and clear browser-local products and list items in Settings.
-- View clearly labeled synthetic development offers. No actual Lidl or Aldi offer feed is connected.
+- View clearly labeled synthetic development offers. No actual Lidl Germany or ALDI SÜD offer feed is connected; real-price comparison is not yet supported because no authorized, browser-compatible source has been verified.
 
 ## Run the browser app without the API
 
@@ -31,4 +31,4 @@ dotnet test SmartCart.sln
 
 ## Architecture, privacy, and offer limitations
 
-See [Project overview](docs/PROJECT_OVERVIEW.md) for project boundaries and browser data handling, and [Retailer data sources](docs/RETAILER_DATA_SOURCES.md) for the checked Lidl/Aldi pages and why the app uses demo-only offers.
+See [Project overview](docs/PROJECT_OVERVIEW.md) for project boundaries and browser data handling, and [Retailer data sources](docs/RETAILER_DATA_SOURCES.md) for the ALDI SÜD and Lidl source assessment, the unofficial ALDiscount research reference, and the requirements for a future authorized integration.

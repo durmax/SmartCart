@@ -11,7 +11,7 @@ public static class WebServiceCollectionExtensions
         services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(baseAddress) });
         services.AddScoped<IReceiptParser, LidlReceiptParser>();
         services.AddScoped<IRetailerOfferProvider>(_ => new DevelopmentDemoRetailerOfferProvider("Lidl"));
-        services.AddScoped<IRetailerOfferProvider>(_ => new DevelopmentDemoRetailerOfferProvider("Aldi Nord"));
+        services.AddScoped<IRetailerOfferProvider>(_ => new DevelopmentDemoRetailerOfferProvider("ALDI SÜD"));
         services.AddScoped<DemoOfferCatalogService>();
         services.AddScoped<OfferComparisonService>();
         services.AddScoped<IProductStore, IndexedDbProductStore>();

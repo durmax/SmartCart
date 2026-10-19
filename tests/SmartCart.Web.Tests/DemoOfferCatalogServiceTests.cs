@@ -12,7 +12,7 @@ public sealed class DemoOfferCatalogServiceTests
         var service = new DemoOfferCatalogService(
         [
             new DevelopmentDemoRetailerOfferProvider("Lidl"),
-            new DevelopmentDemoRetailerOfferProvider("Aldi Nord")
+            new DevelopmentDemoRetailerOfferProvider("ALDI SÜD")
         ]);
 
         var offers = await service.GetOffersAsync();
@@ -22,7 +22,7 @@ public sealed class DemoOfferCatalogServiceTests
         Assert.Contains("not fetched, verified", DemoOfferCatalogService.Limitation, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(4, offers.Count);
         Assert.Contains(offers, offer => offer.Retailer == "Lidl (demo)");
-        Assert.Contains(offers, offer => offer.Retailer == "Aldi Nord (demo)");
+        Assert.Contains(offers, offer => offer.Retailer == "ALDI SÜD (demo)");
         Assert.All(offers, offer =>
         {
             Assert.Null(offer.SourceUrl);

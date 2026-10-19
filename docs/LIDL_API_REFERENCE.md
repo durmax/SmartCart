@@ -122,18 +122,18 @@ https://offers.lidlplus.com/app/api/v4/DE/DE5868/offers
 
 ## 5. Technical access tests already performed (October 2026)
 
-The user directly confirmed the following behavior:
+The following are empirical results from the project owner's local testing, not official Lidl API documentation:
 
 | Client | Result | Interpretation |
 | --- | --- | --- |
 | Chrome, normal browsing | JSON returned | Direct navigation works in that browser/session |
 | Chrome Incognito | JSON returned | A previously saved browsing session is not required for every successful navigation |
 | `fetch()` from Blazor's origin | Browser CORS failure | Lidl did not include `Access-Control-Allow-Origin` allowing the SmartCart origin |
-| PowerShell `curl.exe`, basic GET | HTTP 400, empty response | The endpoint did not accept that form of request |
-| .NET `HttpClient` with HTTP/2 only | HTTP 400 | Protocol version alone did not resolve the rejection |
-| .NET `HttpClient`, HTTP/2 plus `Accept: application/json` and `Accept-Language: de-DE` | **HTTP 200 and nonempty offers JSON** | **Successful local server-side proof of concept** |
+| Initial .NET HTTP/1.1 GET | HTTP 400 Bad Request | Initial request configuration was rejected |
+| .NET `HttpClient` with HTTP/2 (`RequestVersionExact`) and without the added headers | HTTP 400 Bad Request | HTTP/2 alone did not resolve the rejection |
+| .NET `HttpClient` with HTTP/2 (`RequestVersionExact`), `Accept: application/json`, and `Accept-Language: de-DE` | **HTTP 200 OK and nonempty offers JSON** | **Successful local server-side proof of concept** |
 
-The successful test changed several request properties relative to previous attempts. It **does not prove** which individual header(s) are strictly necessary for all future requests or stores.
+The successful result is reported by the project owner and was not retested as part of the documentation/code review. It establishes only that the combined configuration worked in that local test; it **does not prove** whether either header is individually necessary or whether the same result applies to other stores or future requests.
 
 ### Minimal .NET proof-of-concept request (server-side only)
 
