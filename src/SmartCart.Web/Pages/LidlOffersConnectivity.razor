@@ -1,0 +1,63 @@
+@page "/lidl-offers-connectivity"
+@using Microsoft.AspNetCore.Components.WebAssembly.Hosting
+@inject IWebAssemblyHostEnvironment HostEnvironment
+@inject LidlOffersApiClient OffersApi
+
+<PageTitle>Lidl offers connectivity test</PageTitle>
+
+<header class="page-heading">
+    <p class="eyebrow">DEVELOPMENT CONNECTIVITY TEST</p>
+    <h1>Lidl offers API</h1>
+    <p>This page calls SmartCart.Api. The API makes the server-side Lidl request using its configured HTTP/2 request.</p>
+</header>
+
+@if (!HostEnvironment.IsDevelopment())
+{
+    <p class="error-message" role="status">This connectivity test is available only in Development.</p>
+}
+else
+{
+    <section class="panel">
+        <p>Test store: DE3379</p>
+        <button class="button button-primary" type="button" @onclick="FetchOffersAsync" disabled="@_isLoading">
+            @(_isLoading ? "Requesting…" : "Request offers")
+        </button>
+
+        @if (_error is not null)
+        {
+            <p class="error-message" role="alert">@_error</p>
+        }
+
+        @if (_response is not null)
+        {
+            <p role="status">SmartCart.Api returned HTTP @((int)_response.StatusCode).</p>
+            <pre class="api-response">@_response.Content</pre>
+        }
+    </section>
+}
+
+@code {
+    private LidlOffersApiResponse? _response;
+    private string? _error;
+    private bool _isLoading;
+
+    private async Task FetchOffersAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        _response = null;
+
+        try
+        {
+            _response = await OffersApi.GetOffersAsync("DE3379");
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Could not reach SmartCart.Api. Confirm that the API is running and its development HTTPS certificate is trusted.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

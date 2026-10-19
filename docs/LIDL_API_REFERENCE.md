@@ -28,6 +28,13 @@ https://offers.lidlplus.com/app/api/
 - [Lidl store autocomplete (Neuss, complete parameters)](https://stores.lidlplus.com/api/v1/autocomplete/DE?input=Neuss&language=de&latitude=51.198&longitude=6.692)
 - [Lidl offers (example store DE5868)](https://offers.lidlplus.com/app/api/v4/DE/DE5868/offers)
 
+
+The coupons endpoint reported by a maintained unofficial Lidl Plus client is:
+- GET https://coupons.lidlplus.com/app/api/v2/promotionslist
+Authorization: Bearer YOUR_ACCESS_TOKEN
+Country: DE
+Accept: application/json
+
 ## 2. Store catalog endpoint
 
 **URL**

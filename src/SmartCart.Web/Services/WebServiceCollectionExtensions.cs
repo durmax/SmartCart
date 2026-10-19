@@ -6,9 +6,14 @@ namespace SmartCart.Web.Services;
 
 public static class WebServiceCollectionExtensions
 {
-    public static IServiceCollection AddSmartCartWeb(this IServiceCollection services, string baseAddress)
+    public static IServiceCollection AddSmartCartWeb(
+        this IServiceCollection services,
+        string baseAddress,
+        string? apiBaseAddress = null)
     {
         services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(baseAddress) });
+        services.AddScoped(_ => new LidlOffersApiClient(
+            new HttpClient { BaseAddress = new Uri(apiBaseAddress ?? baseAddress) }));
         services.AddScoped<IReceiptParser, LidlReceiptParser>();
         services.AddScoped<IRetailerOfferProvider>(_ => new DevelopmentDemoRetailerOfferProvider("Lidl"));
         services.AddScoped<IRetailerOfferProvider>(_ => new DevelopmentDemoRetailerOfferProvider("ALDI SÜD"));
